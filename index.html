@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>대학원 면접 AI 노트장</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 900: '#1e3a8a' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #f8fafc; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .toast { transition: opacity 0.3s ease, transform 0.3s ease; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+    <!-- 상단 네비게이션바 -->
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center shrink-0 z-10 shadow-sm">
+        <div class="flex items-center gap-3">
+            <div class="bg-brand-500 text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-md shadow-brand-500/20">
+                <i class="fa-solid fa-graduation-cap text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-800 tracking-tight">면접 마스터</h1>
+                <p class="text-xs text-slate-500 font-medium">AI 기반 대학원 면접 준비</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <!-- API 키 설정 버튼 -->
+            <button onclick="editApiKey()" class="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-3 py-2 rounded-lg font-medium text-sm transition-colors tooltip" title="Gemini API 키 설정">
+                <i class="fa-solid fa-key"></i>
+                <span class="hidden sm:inline">API 키 설정</span>
+            </button>
+            <button id="authBtn" onclick="toggleAuth()" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm transition-colors">
+                <img src="https://cdn-icons-png.flaticon.com/512/2991/2991148.png" alt="Google" class="w-4 h-4">
+                <span id="authBtnText">구글로 로그인 / 보호하기</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- 왼쪽: 질문 관리 영역 -->
+        <section class="w-full md:w-[280px] lg:w-[320px] flex flex-col bg-slate-50 border-r border-slate-200 z-0 h-full shrink-0">
+            
+            <!-- 질문 추가 폼 -->
+            <div class="p-5 bg-white border-b border-slate-200 shrink-0 shadow-sm">
+                <h2 class="text-sm font-bold text-slate-700 mb-3"><i class="fa-solid fa-pen text-brand-500 mr-1.5"></i>새 예상 질문 추가</h2>
+                <div class="flex flex-col gap-2">
+                    <select id="qCategoryInput" class="bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 block p-2.5 outline-none transition-colors">
+                        <option value="자기소개 및 동기">자기소개 및 동기</option>
+                        <option value="연구 및 경력">연구 및 경력</option>
+                        <option value="전공수학">전공수학</option>
+                        <option value="기타">기타</option>
+                    </select>
+                    <div class="flex gap-2">
+                        <input type="text" id="qTitleInput" placeholder="예: 우리 대학원에 지원한 동기는?" class="flex-1 bg-slate-50 border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-brand-500 focus:border-brand-500 p-2.5 outline-none transition-colors" onkeypress="if(event.key === 'Enter') addQuestion()">
+                        <button onclick="addQuestion()" class="bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg px-4 py-2 text-sm transition-colors whitespace-nowrap shadow-sm shadow-brand-600/20">
+                            추가
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 카테고리 필터 & 질문 리스트 -->
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <div class="p-3 border-b border-slate-200 flex justify-between items-center bg-slate-100/50 shrink-0">
+                    <span class="text-xs font-bold text-slate-500"><i class="fa-solid fa-list-ul mr-1.5"></i>목록 필터</span>
+                    <select id="categoryFilter" onchange="updateFilter(this.value)" class="text-xs font-medium bg-white border border-slate-200 text-slate-600 rounded-md focus:ring-brand-500 focus:border-brand-500 block p-1.5 outline-none shadow-sm cursor-pointer">
+                        <option value="all">전체 보기</option>
+                        <option value="자기소개 및 동기">자기소개 및 동기</option>
+                        <option value="연구 및 경력">연구 및 경력</option>
+                        <option value="전공수학">전공수학</option>
+                        <option value="기타">기타</option>
+                    </select>
+                </div>
+                <!-- 리스트 출력부 -->
+                <div class="overflow-y-auto p-4 space-y-4 flex-1" id="questionList">
+                    <!-- JS로 자동 렌더링됨 -->
+                </div>
+            </div>
+        </section>
+        
+        <!-- 중앙: 답변 작성 영역 -->
+        <section class="flex-1 flex flex-col bg-white h-full relative min-w-0">
+            
+            <!-- 내용 없음 안내 -->
+            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center bg-white z-10">
+                <div class="bg-slate-50 p-6 rounded-full mb-4">
+                    <i class="fa-regular fa-comments text-4xl text-slate-300"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-700">왼쪽에서 질문을 선택하거나 추가해주세요.</h3>
+                <p class="text-sm text-slate-500 mt-2">선택한 질문에 대한 AI 맞춤 답변을 생성할 수 있습니다.</p>
+            </div>
+
+            <!-- 답변 작성 화면 (질문 선택 시 표시) -->
+            <div id="activeState" class="hidden flex-1 flex flex-col h-full overflow-hidden">
+                
+                <!-- 상단 질문 헤더 -->
+                <div class="p-6 border-b border-slate-100 shrink-0 bg-white">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span id="activeQCategory" class="text-xs font-bold px-2.5 py-1 rounded-md bg-brand-50 text-brand-600 border border-brand-100">카테고리</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-4">
+                        <h2 id="activeQTitle" class="text-2xl font-bold text-slate-800 leading-tight">질문 제목</h2>
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="editQuestionTitle()" class="text-slate-400 hover:text-brand-500 transition-colors p-2 rounded-lg hover:bg-brand-50 tooltip" title="제목 수정">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="deleteQuestion()" class="text-slate-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50 tooltip" title="질문 삭제">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto p-6 flex flex-col bg-slate-50/30">
+                    <div class="flex justify-between items-end mb-3">
+                        <label class="font-bold text-slate-700"><i class="fa-solid fa-pen-nib text-brand-500 mr-1.5"></i>나의 답변</label>
+                        <button onclick="generateAIAnswer()" class="bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-md transition-transform hover:scale-105 flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI 모범 답변 생성
+                        </button>
+                    </div>
+                    <div class="relative flex-1 min-h-[300px] flex flex-col">
+                        <textarea id="answerInput" class="w-full flex-1 p-5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all text-slate-700 resize-none leading-relaxed text-[15px] shadow-sm" placeholder="이곳에 나만의 답변을 작성하거나, 우측 상단의 AI 생성 버튼을 눌러 초안을 받아보세요." oninput="debouncedSaveAnswer()"></textarea>
+                        
+                        <!-- AI 로딩 오버레이 -->
+                        <div id="aiLoadingOverlay" class="hidden absolute inset-0 bg-white/90 backdrop-blur-sm rounded-xl flex flex-col items-center justify-center z-10 border border-brand-100">
+                            <i class="fa-solid fa-circle-notch fa-spin text-3xl text-brand-500 mb-3"></i>
+                            <p class="text-sm font-bold text-slate-700">AI가 배경지식을 바탕으로<br>최적의 답변을 작성 중입니다...</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-400 px-1 mt-2">
+                        <span id="saveStatus">자동 저장됨</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 오른쪽: AI 배경지식 저장소 (공통) -->
+        <section class="w-full md:w-[300px] lg:w-[340px] flex flex-col bg-white border-l border-slate-200 h-full shrink-0 overflow-y-auto">
+            <div class="p-4 border-b border-slate-100 flex flex-col gap-2 shrink-0 sticky top-0 bg-white z-10">
+                <div class="flex items-center gap-2">
+                    <div class="bg-indigo-100 text-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-sm">공통 AI 배경지식</h3>
+                        <p class="text-[10px] text-slate-500">모든 답변 생성 시 기본 참고됩니다.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 space-y-4">
+                <!-- 요약 및 비전 -->
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-file-lines text-slate-400 mr-1"></i> 학업계획서 핵심 요약</label>
+                    <textarea id="kbStudyPlan" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 transition-all text-slate-700 h-28 resize-none text-[13px] leading-relaxed" placeholder="전공 선택 이유, 연구 관심 분야 등 주요 내용을 텍스트로 요약해두세요." onblur="saveKnowledgeBase()"></textarea>
+                </div>
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-building-columns text-slate-400 mr-1"></i> 지원 대학/연구실 비전</label>
+                    <textarea id="kbVision" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 transition-all text-slate-700 h-20 resize-none text-[13px] leading-relaxed" placeholder="예: AI 융합 인재 양성, 글로벌 리더 등" onblur="saveKnowledgeBase()"></textarea>
+                </div>
+
+                <!-- 추가 구문 정보 영역 -->
+                <div class="flex flex-col gap-1.5 pt-3 border-t border-slate-100">
+                    <label class="text-xs font-bold text-slate-700"><i class="fa-solid fa-quote-left text-slate-400 mr-1"></i> 추가 정보 및 핵심 구문</label>
+                    <textarea id="kbExtraInfo" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 transition-all text-slate-700 h-24 resize-none text-[13px] leading-relaxed" placeholder="면접에서 꼭 말하고 싶은 문구나 추가 정보를 자유롭게 적어두세요." onblur="saveKnowledgeBase()"></textarea>
+                </div>
+
+                <!-- 첨부 파일 영역 -->
+                <div class="flex flex-col gap-1.5 pt-3 border-t border-slate-100">
+                    <label class="text-xs font-bold text-slate-700 flex justify-between items-center">
+                        <span><i class="fa-solid fa-paperclip text-slate-400 mr-1"></i> 파일 첨부</span>
+                        <span class="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">최대 10개 (참조용)</span>
+                    </label>
+                    <div id="fileDropZone" class="mt-1 border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:bg-slate-50 hover:border-indigo-300 transition-colors bg-white flex flex-col items-center justify-center gap-1.5" onclick="document.getElementById('fileInput').click()">
+                        <i class="fa-solid fa-cloud-arrow-up text-indigo-400 text-lg"></i>
+                        <p class="text-[11px] font-medium text-slate-500">클릭하여 PDF/HWP 업로드</p>
+                        <input type="file" id="fileInput" class="hidden" multiple accept=".pdf,.hwp,.hwpx,.doc,.docx" onchange="handleFileUpload(event)">
+                    </div>
+                    <ul id="fileList" class="flex flex-col gap-1.5 mt-1 empty:hidden"></ul>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast UI -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, addDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 파이어베이스 설정값
+        const firebaseConfig = {
+          apiKey: "AIzaSyAjT11SATMEfMmLDFEYEW-5Nb8PU7LMvi8",
+          authDomain: "mathedu-master.firebaseapp.com",
+          projectId: "mathedu-master",
+          storageBucket: "mathedu-master.firebasestorage.app",
+          messagingSenderId: "285015683913",
+          appId: "1:285015683913:web:8d15e04ecbd4cc1e4f6098"
+        };
+        const appId = 'interview_prep_app_v1';
+        
+        let app, db, auth;
+        let currentUserId = null;
+        let unsubscribeQuestions = null;
+        let unsubscribeKB = null;
+        
+        // 보안을 위해 기본 API 키를 비워두었습니다. 
+        // 깃허브 배포 후 사이트 우측 상단 'API 키 설정' 버튼을 통해 본인의 키를 입력하세요.
+        const DEFAULT_API_KEY = '';
+        const CATEGORIES = ['자기소개 및 동기', '연구 및 경력', '전공수학', '기타'];
+        const state = { questions: [], activeQuestionId: null, filter: 'all', knowledgeBase: { studyPlan: '', vision: '', extraInfo: '', files: [], geminiApiKey: DEFAULT_API_KEY } };
+
+        const authBtnText = document.getElementById('authBtnText');
+        const authBtn = document.getElementById('authBtn');
+        const questionListEl = document.getElementById('questionList');
+        const emptyStateEl = document.getElementById('emptyState');
+        const activeStateEl = document.getElementById('activeState');
+        const activeQTitle = document.getElementById('activeQTitle');
+        const activeQCategory = document.getElementById('activeQCategory');
+        const answerInput = document.getElementById('answerInput');
+        const saveStatus = document.getElementById('saveStatus');
+        
+        const kbStudyPlan = document.getElementById('kbStudyPlan');
+        const kbVision = document.getElementById('kbVision');
+        const kbExtraInfo = document.getElementById('kbExtraInfo');
+        const fileListEl = document.getElementById('fileList');
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUserId = user.uid;
+                    authBtnText.textContent = "로그아웃";
+                    authBtn.classList.replace('bg-slate-100', 'bg-brand-50');
+                    authBtn.classList.replace('text-slate-700', 'text-brand-700');
+                    loadUserData();
+                    showToast('안전하게 로그인되었습니다.', 'success');
+                } else {
+                    currentUserId = null;
+                    authBtnText.textContent = "구글로 로그인 / 보호하기";
+                    authBtn.classList.replace('bg-brand-50', 'bg-slate-100');
+                    authBtn.classList.replace('text-brand-700', 'text-slate-700');
+                    if (unsubscribeQuestions) unsubscribeQuestions();
+                    if (unsubscribeKB) unsubscribeKB();
+                    resetUI();
+                }
+            });
+        } catch (e) { 
+            console.error("Firebase init error:", e); 
+        }
+
+        window.toggleAuth = toggleAuth;
+        window.addQuestion = addQuestion;
+        window.selectQuestion = selectQuestion;
+        window.deleteQuestion = deleteQuestion;
+        window.editQuestionTitle = editQuestionTitle;
+        window.editApiKey = editApiKey;
+        window.updateFilter = updateFilter;
+        window.debouncedSaveAnswer = debounce(saveAnswer, 1000);
+        window.saveKnowledgeBase = saveKnowledgeBase;
+        window.generateAIAnswer = generateAIAnswer;
+        window.handleFileUpload = handleFileUpload;
+        window.removeFile = removeFile;
+
+        async function toggleAuth() {
+            if (!auth) {
+                showToast("Firebase가 초기화되지 않았습니다.", "error");
+                return;
+            }
+            if (currentUserId) {
+                await signOut(auth);
+                showToast("로그아웃 되었습니다.");
+            } else {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                } catch (error) {
+                    console.error("Login Error details:", error);
+                    if (error.code === 'auth/operation-not-supported-in-this-environment') {
+                        showToast("로컬 파일 환경에서는 보안상 로그인이 차단됩니다. 깃허브 배포를 진행해주세요!", "error");
+                    } else if (error.code === 'auth/operation-not-allowed') {
+                        showToast("파이어베이스에서 'Google 로그인'이 켜져있지 않습니다. 가이드 2단계를 확인해주세요.", "error");
+                    } else if (error.code === 'auth/popup-closed-by-user') {
+                        showToast("로그인 창을 닫았습니다.", "info");
+                    } else if (error.code === 'auth/unauthorized-domain') {
+                        showToast("승인되지 않은 도메인입니다. 파이어베이스 인증 설정에 도메인을 추가해주세요.", "error");
+                    } else {
+                        showToast("로그인 에러: " + error.message, "error");
+                    }
+                }
+            }
+        }
+
+        function loadUserData() {
+            if (!currentUserId || !db) return;
+            const kbRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'settings', 'knowledgeBase');
+            unsubscribeKB = onSnapshot(kbRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    state.knowledgeBase = docSnap.data();
+                    if (!state.knowledgeBase.files) state.knowledgeBase.files = [];
+                    if (!state.knowledgeBase.geminiApiKey) state.knowledgeBase.geminiApiKey = DEFAULT_API_KEY;
+
+                    kbStudyPlan.value = state.knowledgeBase.studyPlan || '';
+                    kbVision.value = state.knowledgeBase.vision || '';
+                    kbExtraInfo.value = state.knowledgeBase.extraInfo || '';
+                    renderFileList();
+                }
+            });
+
+            const qCol = collection(db, 'artifacts', appId, 'users', currentUserId, 'questions');
+            unsubscribeQuestions = onSnapshot(qCol, (snapshot) => {
+                state.questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+                                    .sort((a, b) => b.createdAt - a.createdAt);
+                renderQuestions();
+                if (state.activeQuestionId) {
+                    const updatedQ = state.questions.find(q => q.id === state.activeQuestionId);
+                    if (updatedQ && document.activeElement !== answerInput) {
+                        answerInput.value = updatedQ.answer || '';
+                    } else if (!updatedQ) {
+                        closeQuestion();
+                    }
+                }
+            });
+        }
+
+        function resetUI() {
+            state.questions = [];
+            state.activeQuestionId = null;
+            state.knowledgeBase = { studyPlan: '', vision: '', extraInfo: '', files: [], geminiApiKey: DEFAULT_API_KEY };
+            kbStudyPlan.value = ''; kbVision.value = ''; kbExtraInfo.value = '';
+            renderFileList();
+            renderQuestions();
+            closeQuestion();
+        }
+
+        function updateFilter(category) {
+            state.filter = category;
+            renderQuestions();
+        }
+
+        function renderQuestions() {
+            questionListEl.innerHTML = '';
+            let hasVisible = false;
+
+            CATEGORIES.forEach(category => {
+                if (state.filter !== 'all' && state.filter !== category) return;
+                
+                const items = state.questions.filter(q => q.category === category);
+                if (items.length > 0) {
+                    hasVisible = true;
+                    const header = document.createElement('h3');
+                    header.className = `text-[11px] font-bold text-slate-400 mt-4 mb-2 px-1 ${questionListEl.children.length===0?'!mt-0':''}`;
+                    header.textContent = category;
+                    questionListEl.appendChild(header);
+
+                    items.forEach(q => {
+                        const btn = document.createElement('button');
+                        const isActive = q.id === state.activeQuestionId;
+                        btn.className = `w-full text-left p-3 rounded-lg border mb-2 transition-all flex flex-col gap-1 group relative overflow-hidden ${
+                            isActive ? 'bg-brand-50 border-brand-200 shadow-sm' : 'bg-white border-slate-200 hover:border-brand-300 hover:bg-slate-50'
+                        }`;
+                        btn.onclick = () => selectQuestion(q.id);
+                        
+                        const badge = (q.answer && q.answer.trim().length > 0) 
+                            ? `<span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">작성완료</span>`
+                            : `<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">미작성</span>`;
+
+                        const indicator = isActive ? `<div class="absolute left-0 top-0 bottom-0 w-1 bg-brand-500 rounded-l-lg"></div>` : '';
+
+                        btn.innerHTML = `
+                            ${indicator}
+                            <div class="flex justify-between items-start gap-2 w-full">
+                                <span class="text-sm font-bold ${isActive ? 'text-brand-900' : 'text-slate-700'} leading-snug line-clamp-2 pr-1">${q.title}</span>
+                                ${badge}
+                            </div>
+                        `;
+                        questionListEl.appendChild(btn);
+                    });
+                }
+            });
+
+            if (!hasVisible) {
+                questionListEl.innerHTML = `<div class="text-center text-slate-400 mt-10 text-sm py-4 border-2 border-dashed border-slate-200 rounded-xl">질문이 없습니다.</div>`;
+            }
+        }
+
+        async function addQuestion() {
+            const titleInput = document.getElementById('qTitleInput');
+            const catInput = document.getElementById('qCategoryInput');
+            const title = titleInput.value.trim();
+            const category = catInput.value;
+
+            if (!title) return;
+            if (!currentUserId) { showToast("로그인이 필요합니다.", "error"); return; }
+
+            const newQ = { title, category, answer: '', createdAt: Date.now() };
+            titleInput.value = '';
+            
+            try {
+                const docRef = await addDoc(collection(db, 'artifacts', appId, 'users', currentUserId, 'questions'), newQ);
+                if (state.filter !== 'all' && state.filter !== category) {
+                    document.getElementById('categoryFilter').value = category;
+                    state.filter = category;
+                }
+                selectQuestion(docRef.id);
+            } catch (e) {
+                showToast("추가 실패", "error");
+            }
+        }
+
+        function selectQuestion(id) {
+            state.activeQuestionId = id;
+            const q = state.questions.find(q => q.id === id);
+            if (!q) return;
+
+            renderQuestions();
+            emptyStateEl.classList.add('hidden');
+            activeStateEl.classList.remove('hidden');
+            activeStateEl.classList.add('flex');
+
+            activeQTitle.textContent = q.title;
+            activeQCategory.textContent = q.category;
+            answerInput.value = q.answer || '';
+            saveStatus.textContent = '자동 저장 대기';
+        }
+
+        function closeQuestion() {
+            state.activeQuestionId = null;
+            emptyStateEl.classList.remove('hidden');
+            activeStateEl.classList.add('hidden');
+            activeStateEl.classList.remove('flex');
+            renderQuestions();
+        }
+
+        async function saveAnswer() {
+            if (!state.activeQuestionId || !currentUserId) return;
+            saveStatus.textContent = '저장 중...';
+            try {
+                const qRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'questions', state.activeQuestionId);
+                await updateDoc(qRef, { answer: answerInput.value });
+                saveStatus.innerHTML = '<i class="fa-solid fa-check text-emerald-500 mr-1"></i>저장 완료';
+                setTimeout(() => { if(saveStatus.textContent.includes('완료')) saveStatus.textContent = ''; }, 2000);
+            } catch (e) {
+                saveStatus.textContent = '저장 실패';
+            }
+        }
+
+        async function deleteQuestion() {
+            if (!state.activeQuestionId || !currentUserId) return;
+            if (confirm('이 질문을 정말 삭제하시겠습니까?')) {
+                try {
+                    await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUserId, 'questions', state.activeQuestionId));
+                    closeQuestion();
+                    showToast('삭제되었습니다.');
+                } catch (e) { showToast('삭제 실패', 'error'); }
+            }
+        }
+
+        async function editQuestionTitle() {
+            if (!state.activeQuestionId || !currentUserId) return;
+            const q = state.questions.find(x => x.id === state.activeQuestionId);
+            if (!q) return;
+            
+            const newTitle = prompt("수정할 질문 제목을 입력하세요:", q.title);
+            if (newTitle && newTitle.trim() !== "" && newTitle !== q.title) {
+                try {
+                    const qRef = doc(db, 'artifacts', appId, 'users', currentUserId, 'questions', state.activeQuestionId);
+                    await updateDoc(qRef, { title: newTitle.trim() });
+                    showToast('제목이 수정되었습니다.', 'success');
+                } catch (e) {
+                    showToast('제목 수정 실패', 'error');
+                }
+            }
+        }
+
+        async function editApiKey() {
+            const currentKey = state.knowledgeBase.geminiApiKey || DEFAULT_API_KEY;
+            const newKey = prompt("발급받으신 Gemini API 키를 입력해주세요.\n(입력하신 키는 본인 계정에 안전하게 저장됩니다)", currentKey);
+            if (newKey !== null && newKey.trim() !== "") {
+                state.knowledgeBase.geminiApiKey = newKey.trim();
+                showToast("API 키가 안전하게 등록/업데이트되었습니다.", "success");
+                if (currentUserId) {
+                    await saveKnowledgeBase();
+                }
+            }
+        }
+
+        async function saveKnowledgeBase() {
+            if (!currentUserId || !db) return;
+            const kbData = {
+                studyPlan: kbStudyPlan.value,
+                vision: kbVision.value,
+                extraInfo: kbExtraInfo.value,
+                geminiApiKey: state.knowledgeBase.geminiApiKey,
+                files: state.knowledgeBase.files || []
+            };
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'users', currentUserId, 'settings', 'knowledgeBase'), kbData);
+            } catch (e) { console.error("KB Save Error", e); }
+        }
+
+        function handleFileUpload(event) {
+            const newFiles = Array.from(event.target.files);
+            if (newFiles.length === 0) return;
+
+            const currentFiles = state.knowledgeBase.files || [];
+            if (currentFiles.length + newFiles.length > 10) {
+                showToast('파일은 최대 10개까지만 업로드 가능합니다.', 'error');
+                return;
+            }
+
+            const fileData = newFiles.map(f => ({
+                id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                name: f.name,
+                size: (f.size / 1024 / 1024).toFixed(2) + 'MB',
+                type: f.name.split('.').pop().toUpperCase()
+            }));
+
+            state.knowledgeBase.files = [...currentFiles, ...fileData];
+            renderFileList();
+            saveKnowledgeBase();
+            event.target.value = ''; 
+        }
+
+        function removeFile(fileId) {
+            state.knowledgeBase.files = (state.knowledgeBase.files || []).filter(f => f.id !== fileId);
+            renderFileList();
+            saveKnowledgeBase();
+        }
+
+        function renderFileList() {
+            fileListEl.innerHTML = '';
+            const files = state.knowledgeBase.files || [];
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.className = "flex justify-between items-center bg-slate-50 border border-slate-100 p-2 rounded-lg text-xs group";
+                let icon = file.type === 'PDF' ? "fa-file-pdf text-red-400" : (file.type.startsWith('HWP') ? "fa-file-word text-blue-500" : "fa-file-lines text-slate-400");
+                li.innerHTML = `
+                    <div class="flex items-center gap-2 overflow-hidden px-1">
+                        <i class="fa-solid ${icon}"></i>
+                        <span class="truncate text-slate-700 font-medium">${file.name}</span>
+                    </div>
+                    <button onclick="removeFile('${file.id}')" class="text-slate-300 hover:text-red-500 transition-colors p-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                `;
+                fileListEl.appendChild(li);
+            });
+        }
+
+        async function generateAIAnswer() {
+            if (!state.activeQuestionId) return;
+            const q = state.questions.find(x => x.id === state.activeQuestionId);
+            if (!q) return;
+
+            const apiKey = state.knowledgeBase.geminiApiKey || DEFAULT_API_KEY;
+            if (!apiKey || apiKey.trim() === '') {
+                showToast("상단의 [🔑 API 키 설정] 버튼을 눌러 API 키를 먼저 입력해주세요.", "error");
+                return;
+            }
+
+            const overlay = document.getElementById('aiLoadingOverlay');
+            overlay.classList.remove('hidden');
+
+            const filesInfo = (state.knowledgeBase.files || []).map(f => f.name).join(', ');
+            const prompt = `
+당신은 최고 수준의 대학원 면접 코치입니다. 사용자의 배경지식을 참고하여 면접 질문에 대한 1~2문단의 자연스러운 구어체 답변을 작성하세요.
+[사용자 정보]
+- 학업계획서 요약: ${kbStudyPlan.value || '제공 안됨'}
+- 지원대학 비전: ${kbVision.value || '제공 안됨'}
+- 추가 정보: ${kbExtraInfo.value || '제공 안됨'}
+- 파일명: ${filesInfo || '없음'}
+[면접 질문]
+${q.title}
+답변:`;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+                const result = await response.json();
+                
+                if (result.error) {
+                    throw new Error(result.error.message || "API Error");
+                }
+                
+                const aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (aiText) {
+                    answerInput.value = aiText.trim();
+                    saveAnswer();
+                    showToast('AI 맞춤 답변이 생성되었습니다!', 'success');
+                } else {
+                    throw new Error("Empty response");
+                }
+            } catch (e) {
+                console.error("AI Error:", e);
+                showToast("AI 응답 생성 실패: API 키가 올바른지 확인해주세요.", "error");
+            } finally {
+                overlay.classList.add('hidden');
+            }
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-500' : (type === 'success' ? 'bg-emerald-500' : 'bg-slate-800');
+            const icon = type === 'error' ? 'fa-circle-exclamation' : (type === 'success' ? 'fa-check-circle' : 'fa-info-circle');
+            
+            toast.className = `${bgColor} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium transform translate-y-10 opacity-0 transition-all duration-300`;
+            toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('translate-y-10', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-10');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        renderQuestions();
+    </script>
+</body>
+</html>
